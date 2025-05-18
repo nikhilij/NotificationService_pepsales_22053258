@@ -1,0 +1,288 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.35.1.17967",
+      "templateHash": "10174483035010550590"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "safeEnvironmentName": "[replace(parameters('environmentName'), '_', '')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2021-06-01",
+      "name": "[format('log-{0}-centralus', variables('safeEnvironmentName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30,
+        "features": {
+          "enableLogAccessUsingOnlyResourcePermissions": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[format('appi-{0}-centralus', variables('safeEnvironmentName'))]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Request_Source": "rest",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-centralus', variables('safeEnvironmentName')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-centralus', variables('safeEnvironmentName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "apiVersion": "2021-04-15",
+      "name": "[format('{0}cosmosdb-centralus', variables('safeEnvironmentName'))]",
+      "location": "[parameters('location')]",
+      "kind": "MongoDB",
+      "properties": {
+        "databaseAccountOfferType": "Standard",
+        "locations": [
+          {
+            "locationName": "[parameters('location')]",
+            "failoverPriority": 0
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.ServiceBus/namespaces",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[format('{0}servicebus-centralus', variables('safeEnvironmentName'))]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Standard"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-02-01",
+      "name": "[format('storage{0}', uniqueString(subscription().id, parameters('environmentName')))]",
+      "location": "[parameters('location')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-02-01",
+      "name": "[format('app-{0}', uniqueString(subscription().id, parameters('environmentName')))]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))))]": {}
+        }
+      },
+      "tags": {
+        "azd-env-name": "[parameters('environmentName')]",
+        "azd-service-name": "api"
+      },
+      "properties": {
+        "siteConfig": {
+          "cors": {
+            "allowedOrigins": [
+              "*"
+            ]
+          },
+          "appSettings": [
+            {
+              "name": "MONGODB_URI",
+              "value": "[format('mongodb://{0}cosmosdb:10255/?ssl=true', variables('safeEnvironmentName'))]"
+            },
+            {
+              "name": "MONGODB_DATABASE",
+              "value": "notification_service"
+            },
+            {
+              "name": "RABBITMQ_HOST",
+              "value": "[format('{0}servicebus.servicebus.windows.net', variables('safeEnvironmentName'))]"
+            },
+            {
+              "name": "RABBITMQ_QUEUE",
+              "value": "notifications"
+            },
+            {
+              "name": "ENVIRONMENT",
+              "value": "production"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName'))), '2020-02-02').InstrumentationKey]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName'))), '2020-02-02').ConnectionString]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName')))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-02-01",
+      "name": "[format('function-{0}', uniqueString(subscription().id, parameters('environmentName')))]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))))]": {}
+        }
+      },
+      "tags": {
+        "azd-env-name": "[parameters('environmentName')]",
+        "azd-service-name": "consumer"
+      },
+      "properties": {
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName')))), '2021-02-01').primaryEndpoints.blob]"
+            },
+            {
+              "name": "MONGODB_URI",
+              "value": "[format('mongodb://{0}cosmosdb:10255/?ssl=true', variables('safeEnvironmentName'))]"
+            },
+            {
+              "name": "MONGODB_DATABASE",
+              "value": "notification_service"
+            },
+            {
+              "name": "RABBITMQ_HOST",
+              "value": "[format('{0}servicebus.servicebus.windows.net', variables('safeEnvironmentName'))]"
+            },
+            {
+              "name": "RABBITMQ_QUEUE",
+              "value": "notifications"
+            },
+            {
+              "name": "ENVIRONMENT",
+              "value": "production"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName'))), '2020-02-02').InstrumentationKey]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName'))), '2020-02-02').ConnectionString]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}-centralus', variables('safeEnvironmentName')))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+      "name": "[guid(subscription().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+      "properties": {
+        "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '2023-01-31').principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+      "name": "[guid(subscription().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+      "properties": {
+        "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '2023-01-31').principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+      "name": "[guid(subscription().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+      "properties": {
+        "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '2023-01-31').principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+      "name": "[guid(subscription().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+      "properties": {
+        "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '2023-01-31').principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', format('storage{0}', uniqueString(subscription().id, parameters('environmentName'))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "name": "[guid(subscription().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '3913510d-42f4-4e42-8a64-420c390055eb')]",
+      "properties": {
+        "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName')))), '2023-01-31').principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('identity-{0}', uniqueString(subscription().id, parameters('environmentName'))))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "RESOURCE_GROUP_ID": {
+      "type": "string",
+      "value": "[resourceGroup().id]"
+    }
+  }
+}

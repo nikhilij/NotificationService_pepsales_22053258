@@ -8,6 +8,11 @@ services:
     azure:
       resourceGroup: rg-${{AZURE_ENV_NAME}}
       location: ${{AZURE_LOCATION}}
+      appServicePlan: asp-${{AZURE_ENV_NAME}}
+      appInsights: true
+      environmentVariables:
+        MONGODB_URI: ${{AZURE_MONGODB_URI}}
+        RABBITMQ_URL: ${{AZURE_RABBITMQ_URL}}
   consumer:
     project: ./
     language: python
@@ -16,3 +21,13 @@ services:
     azure:
       resourceGroup: rg-${{AZURE_ENV_NAME}}
       location: ${{AZURE_LOCATION}}
+      appServicePlan:
+        name: plan-${{AZURE_ENV_NAME}}-consumer
+        sku:
+          name: Y1
+          tier: Dynamic
+      storageAccount: sa${{AZURE_ENV_NAME}}
+      appInsights: true
+      environmentVariables:
+        MONGODB_URI: ${{AZURE_MONGODB_URI}}
+        RABBITMQ_URL: ${{AZURE_RABBITMQ_URL}}
