@@ -1,0 +1,11 @@
+Deploying services (azd deploy)
+
+  (✓) Done: Deploying service api
+  - Endpoint: https://app-ati5nu6rj6mba.azurewebsites.net/
+
+  (✓) Done: Deploying service consumer
+  - Endpoint: https://function-ati5nu6rj6mba.azurewebsites.net/
+
+
+SUCCESS: Your up workflow to provision and deploy to Azure completed in 2 minutes 30 seconds.
+PS C:\Users\KIIT\Desktop\backend development\notification_service> 

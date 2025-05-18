@@ -4,6 +4,7 @@ services:
     project: ./
     language: python
     host: appservice
+    startup: gunicorn app:app --bind=0.0.0.0 --timeout 600
     azure:
       resourceGroup: rg-${{AZURE_ENV_NAME}}
       location: ${{AZURE_LOCATION}}
@@ -11,6 +12,7 @@ services:
     project: ./
     language: python
     host: function
+    startup: python consumer.py
     azure:
       resourceGroup: rg-${{AZURE_ENV_NAME}}
       location: ${{AZURE_LOCATION}}

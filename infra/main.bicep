@@ -1,8 +1,38 @@
 param environmentName string
 param location string
 
+// Create a safe name by replacing underscores with hyphens
+var safeEnvironmentName = replace(environmentName, '_', '')
+
+// Add Log Analytics Workspace
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
+  name: 'log-${safeEnvironmentName}'
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+    features: {
+      enableLogAccessUsingOnlyResourcePermissions: true
+    }
+  }
+}
+
+// Add Application Insights resource
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-${safeEnvironmentName}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Request_Source: 'rest'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+  }
+}
+
 resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' = {
-  name: '${environmentName}-cosmosdb'
+  name: '${safeEnvironmentName}cosmosdb'
   location: location
   kind: 'MongoDB'
   properties: {
@@ -17,7 +47,7 @@ resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' = {
 }
 
 resource serviceBus 'Microsoft.ServiceBus/namespaces@2021-06-01-preview' = {
-  name: '${environmentName}-servicebus'
+  name: '${safeEnvironmentName}servicebus'
   location: location
   sku: {
     name: 'Standard'
@@ -50,12 +80,43 @@ resource appService 'Microsoft.Web/sites@2021-02-01' = {
   }
   tags: {
     'azd-env-name': environmentName
+    'azd-service-name': 'api'
   }
   properties: {
     siteConfig: {
       cors: {
         allowedOrigins: ['*']
       }
+      appSettings: [
+        {
+          name: 'MONGODB_URI'
+          value: 'mongodb://${safeEnvironmentName}cosmosdb:10255/?ssl=true'
+        }
+        {
+          name: 'MONGODB_DATABASE'
+          value: 'notification_service'
+        }
+        {
+          name: 'RABBITMQ_HOST'
+          value: '${safeEnvironmentName}servicebus.servicebus.windows.net'
+        }
+        {
+          name: 'RABBITMQ_QUEUE'
+          value: 'notifications'
+        }
+        {
+          name: 'ENVIRONMENT'
+          value: 'production'
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
+      ]
     }
   }
 }
@@ -71,6 +132,7 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   }
   tags: {
     'azd-env-name': environmentName
+    'azd-service-name': 'consumer'
   }
   properties: {
     siteConfig: {
@@ -78,6 +140,34 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
         {
           name: 'AzureWebJobsStorage'
           value: storageAccount.properties.primaryEndpoints.blob
+        }
+        {
+          name: 'MONGODB_URI'
+          value: 'mongodb://${safeEnvironmentName}cosmosdb:10255/?ssl=true'
+        }
+        {
+          name: 'MONGODB_DATABASE'
+          value: 'notification_service'
+        }
+        {
+          name: 'RABBITMQ_HOST'
+          value: '${safeEnvironmentName}servicebus.servicebus.windows.net'
+        }
+        {
+          name: 'RABBITMQ_QUEUE'
+          value: 'notifications'
+        }
+        {
+          name: 'ENVIRONMENT'
+          value: 'production'
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
         }
       ]
     }
@@ -88,7 +178,7 @@ resource roleAssignmentBlobOwner 'Microsoft.Authorization/roleAssignments@2020-0
   name: guid(subscription().id, userAssignedIdentity.id, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
   scope: storageAccount
   properties: {
-    roleDefinitionId: '/subscriptions/${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
     principalId: userAssignedIdentity.properties.principalId
   }
 }
@@ -97,7 +187,7 @@ resource roleAssignmentBlobContributor 'Microsoft.Authorization/roleAssignments@
   name: guid(subscription().id, userAssignedIdentity.id, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: storageAccount
   properties: {
-    roleDefinitionId: '/subscriptions/${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe'
     principalId: userAssignedIdentity.properties.principalId
   }
 }
@@ -106,7 +196,7 @@ resource roleAssignmentQueueContributor 'Microsoft.Authorization/roleAssignments
   name: guid(subscription().id, userAssignedIdentity.id, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
   scope: storageAccount
   properties: {
-    roleDefinitionId: '/subscriptions/${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88'
     principalId: userAssignedIdentity.properties.principalId
   }
 }
@@ -115,7 +205,7 @@ resource roleAssignmentTableContributor 'Microsoft.Authorization/roleAssignments
   name: guid(subscription().id, userAssignedIdentity.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
   scope: storageAccount
   properties: {
-    roleDefinitionId: '/subscriptions/${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
     principalId: userAssignedIdentity.properties.principalId
   }
 }
@@ -124,7 +214,7 @@ resource roleAssignmentMetricsPublisher 'Microsoft.Authorization/roleAssignments
   name: guid(subscription().id, userAssignedIdentity.id, '3913510d-42f4-4e42-8a64-420c390055eb')
   scope: resourceGroup()
   properties: {
-    roleDefinitionId: '/subscriptions/${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb'
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb'
     principalId: userAssignedIdentity.properties.principalId
   }
 }
