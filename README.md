@@ -44,6 +44,126 @@ The notification service uses a queue-based architecture:
 
 ### Installation
 
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Make sure MongoDB and RabbitMQ are running locally:
+   - MongoDB should be available at mongodb://localhost:27017/
+   - RabbitMQ should be running on the default port (5672)
+
+### Running the Service
+
+1. Start the API server:
+
+```bash
+python app.py
+```
+
+2. In a separate terminal, start the consumer:
+
+```bash
+python consumer.py
+```
+
+## Testing the Notification Service
+
+Here's how to test all aspects of the notification service:
+
+### 1. Send an Email Notification
+
+```bash
+curl -X POST http://localhost:5000/notifications \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123, "type": "email", "content": "Test email notification"}'
+```
+
+PowerShell version:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email", "content": "Test email notification"}'
+```
+
+### 2. Send an SMS Notification
+
+```bash
+curl -X POST http://localhost:5000/notifications \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123, "type": "sms", "content": "Test SMS notification"}'
+```
+
+PowerShell version:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "sms", "content": "Test SMS notification"}'
+```
+
+### 3. Send an In-App Notification
+
+```bash
+curl -X POST http://localhost:5000/notifications \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123, "type": "in-app", "content": "Test in-app notification"}'
+```
+
+PowerShell version:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "in-app", "content": "Test in-app notification"}'
+```
+
+### 4. Retrieve User Notifications
+
+```bash
+curl http://localhost:5000/users/123/notifications
+```
+
+PowerShell version:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/users/123/notifications'
+```
+
+### 5. Test Error Handling: Invalid Notification Type
+
+```bash
+curl -X POST http://localhost:5000/notifications \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123, "type": "invalid-type", "content": "This should fail"}'
+```
+
+PowerShell version:
+```powershell
+try { Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "invalid-type", "content": "This should fail"}' } catch { $_.Exception.Response.StatusCode }
+```
+
+### 6. Test Error Handling: Missing Required Field
+
+```bash
+curl -X POST http://localhost:5000/notifications \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123, "type": "email"}'
+```
+
+PowerShell version:
+```powershell
+try { Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email"}' } catch { $_.Exception.Response.StatusCode }
+```
+
+### 7. Check Service Health
+
+```bash
+curl http://localhost:5000/health
+```
+
+PowerShell version:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/health'
+```
+- MongoDB
+- RabbitMQ
+
+### Installation
+
 1. Clone the repository:
 
    ```
