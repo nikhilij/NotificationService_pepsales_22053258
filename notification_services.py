@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # Just the important logs
 logging.basicConfig(
     level=logging.WARNING,  # Only log warnings and errors
-    format="%(levelname)s: %(message)s"  # No timestamps or extra fluff
+    format="%(levelname)s: %(message)s",  # No timestamps or extra fluff
 )
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,11 @@ class NotificationService:
     def send(self, user_id, content):
         """
         Gets your message to where it needs to go
-        
+
         Just needs:
         - who's getting it (user_id)
         - what we're telling them (content)
-        
+
         Lets you know if it worked or not
         """
         raise NotImplementedError("Subclasses must implement this method")
@@ -62,10 +62,10 @@ class InAppNotificationService(NotificationService):
 def get_notification_service(notification_type):
     """
     The service dispatcher - figures out how to send your message
-    
+
     Tells you which sender to use based on what kind of notification
     you want to send (email, text, or in-app pop-up)
-    
+
     Will complain if you try something weird we don't support
     """
     notification_services = {

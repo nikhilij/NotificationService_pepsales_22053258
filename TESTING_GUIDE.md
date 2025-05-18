@@ -5,6 +5,7 @@ This guide provides step-by-step instructions for testing your notification serv
 ## Prerequisites
 
 Before testing, ensure:
+
 1. MongoDB is running on localhost:27017
 2. RabbitMQ is running on default port (5672)
 3. Both the API server and consumer are running in separate terminals:
@@ -22,6 +23,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -Conte
 ```
 
 Expected result:
+
 - Status code: 200
 - Response contains: "message": "Notification sent successfully"
 - Response includes a notification_id
@@ -35,6 +37,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -Conte
 ```
 
 Expected result:
+
 - Same pattern as with email notification
 - The consumer log shows a message about sending an SMS
 
@@ -45,6 +48,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -Conte
 ```
 
 Expected result:
+
 - Same pattern as with other notification types
 - The consumer log shows a message about sending an in-app notification
 
@@ -55,6 +59,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/users/123/notifications'
 ```
 
 Expected result:
+
 - Status code: 200
 - Response contains an array of notifications for user 123
 - Each notification should include id, type, content, status, and created_at
@@ -65,28 +70,9 @@ Expected result:
 #### 2.1 Invalid Notification Type
 
 ```powershell
-try { 
-    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "invalid-type", "content": "This should fail"}' 
-} catch { 
-    $_.Exception.Response.StatusCode 
-    $response = $_.Exception.Response
-    $responseStream = $response.GetResponseStream()
-    $reader = New-Object System.IO.StreamReader($responseStream)
-    $reader.BaseStream.Position = 0
-    $reader.ReadToEnd()
-}
-```
-
-Expected result:
-- Status code: 400 (Bad Request)
-- Response contains error message about invalid type
-
-#### 2.2 Missing Required Field (Content)
-
-```powershell
-try { 
-    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email"}' 
-} catch { 
+try {
+    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "invalid-type", "content": "This should fail"}'
+} catch {
     $_.Exception.Response.StatusCode
     $response = $_.Exception.Response
     $responseStream = $response.GetResponseStream()
@@ -97,16 +83,17 @@ try {
 ```
 
 Expected result:
-- Status code: 400 (Bad Request)
-- Response contains error message about missing content field
 
-#### 2.3 Missing Required Field (User ID)
+- Status code: 400 (Bad Request)
+- Response contains error message about invalid type
+
+#### 2.2 Missing Required Field (Content)
 
 ```powershell
-try { 
-    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"type": "email", "content": "Missing user ID"}' 
-} catch { 
-    $_.Exception.Response.StatusCode 
+try {
+    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email"}'
+} catch {
+    $_.Exception.Response.StatusCode
     $response = $_.Exception.Response
     $responseStream = $response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($responseStream)
@@ -116,6 +103,27 @@ try {
 ```
 
 Expected result:
+
+- Status code: 400 (Bad Request)
+- Response contains error message about missing content field
+
+#### 2.3 Missing Required Field (User ID)
+
+```powershell
+try {
+    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"type": "email", "content": "Missing user ID"}'
+} catch {
+    $_.Exception.Response.StatusCode
+    $response = $_.Exception.Response
+    $responseStream = $response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($responseStream)
+    $reader.BaseStream.Position = 0
+    $reader.ReadToEnd()
+}
+```
+
+Expected result:
+
 - Status code: 400 (Bad Request)
 - Response contains error message about missing user_id field
 
@@ -126,6 +134,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/health'
 ```
 
 Expected result:
+
 - Status code: 200
 - Response contains: "status": "ok"
 
@@ -146,6 +155,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/users/456/notifications' | Convert
 ```
 
 Expected result:
+
 - All 3 notifications are returned for user 456
 - Each notification has the correct type and content
 
@@ -162,6 +172,7 @@ Invoke-RestMethod -Uri 'http://localhost:5000/users/789/notifications' | Convert
 ```
 
 Expected result:
+
 - All 10 notifications are processed and saved
 - The consumer handles the load without errors
 
@@ -179,11 +190,13 @@ If tests fail, check:
 To directly verify that notifications are being saved to MongoDB:
 
 1. Open MongoDB shell:
+
    ```
    mongosh
    ```
 
 2. Switch to your database:
+
    ```
    use notification_service
    ```

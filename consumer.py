@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Keep logging minimal - just what we need to know
 logging.basicConfig(
     level=logging.WARNING,  # Changed from INFO to WARNING to cut down on noise
-    format="%(levelname)s: %(message)s"  # Cleaner format
+    format="%(levelname)s: %(message)s",  # Cleaner format
 )
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def get_rabbitmq_connection():
 def process_notification(ch, method, properties, body):
     """
     Handles notifications coming from the queue
-    
+
     Takes care of:
     - Checking if the message makes sense
     - Sending it through the right channel

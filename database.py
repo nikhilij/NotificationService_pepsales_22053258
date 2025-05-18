@@ -16,7 +16,7 @@ notifications_collection = db["notifications"]
 def init_db():
     """
     Nothing to do here - MongoDB is cool like that
-    
+
     No need for complicated setup steps, tables, or schemas
     MongoDB just creates stuff on the fly
     """
@@ -51,7 +51,7 @@ def save_notification(user_id, notification_type, content):
 def update_notification_status(notification_id, status):
     """
     Mark a notification as delivered or failed
-    
+
     Just needs:
     - which notification (by ID)
     - what happened to it (status)
@@ -64,7 +64,7 @@ def update_notification_status(notification_id, status):
 def get_user_notifications(user_id):
     """
     Pull up all the notifications for someone
-    
+
     Just give it a user ID and it'll fetch everything
     they've been sent, newest first
     """

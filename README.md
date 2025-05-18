@@ -82,6 +82,7 @@ curl -X POST http://localhost:5000/notifications \
 ```
 
 PowerShell version:
+
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email", "content": "Test email notification"}'
 ```
@@ -95,6 +96,7 @@ curl -X POST http://localhost:5000/notifications \
 ```
 
 PowerShell version:
+
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "sms", "content": "Test SMS notification"}'
 ```
@@ -108,6 +110,7 @@ curl -X POST http://localhost:5000/notifications \
 ```
 
 PowerShell version:
+
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "in-app", "content": "Test in-app notification"}'
 ```
@@ -119,6 +122,7 @@ curl http://localhost:5000/users/123/notifications
 ```
 
 PowerShell version:
+
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:5000/users/123/notifications'
 ```
@@ -132,6 +136,7 @@ curl -X POST http://localhost:5000/notifications \
 ```
 
 PowerShell version:
+
 ```powershell
 try { Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "invalid-type", "content": "This should fail"}' } catch { $_.Exception.Response.StatusCode }
 ```
@@ -145,6 +150,7 @@ curl -X POST http://localhost:5000/notifications \
 ```
 
 PowerShell version:
+
 ```powershell
 try { Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email"}' } catch { $_.Exception.Response.StatusCode }
 ```
@@ -156,9 +162,11 @@ curl http://localhost:5000/health
 ```
 
 PowerShell version:
+
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:5000/health'
 ```
+
 - MongoDB
 - RabbitMQ
 

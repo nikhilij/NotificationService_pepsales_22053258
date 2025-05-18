@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Setting up logging - just the important stuff
 logging.basicConfig(
     level=logging.WARNING,  # Changed from INFO to WARNING to reduce noise
-    format="%(levelname)s: %(message)s"  # Simplified format
+    format="%(levelname)s: %(message)s",  # Simplified format
 )
 logger = logging.getLogger(__name__)
 
