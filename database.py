@@ -2,14 +2,19 @@ from pymongo import MongoClient
 import json
 import datetime
 import warnings
+import logging
 from bson.objectid import ObjectId
+from config import MONGODB_URI, MONGODB_DATABASE
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Quiet down the MongoDB warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Hook up to our database
-client = MongoClient("mongodb://localhost:27017/")
-db = client["notification_service"]
+# Set up database connection using configuration
+client = MongoClient(MONGODB_URI)
+db = client[MONGODB_DATABASE]
 notifications_collection = db["notifications"]
 
 

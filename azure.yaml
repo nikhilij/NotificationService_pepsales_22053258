@@ -1,0 +1,16 @@
+name: notification-service
+services:
+  api:
+    project: ./
+    language: python
+    host: appservice
+    azure:
+      resourceGroup: rg-${{AZURE_ENV_NAME}}
+      location: ${{AZURE_LOCATION}}
+  consumer:
+    project: ./
+    language: python
+    host: function
+    azure:
+      resourceGroup: rg-${{AZURE_ENV_NAME}}
+      location: ${{AZURE_LOCATION}}

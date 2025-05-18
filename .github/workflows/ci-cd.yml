@@ -1,0 +1,113 @@
+name: Notification Service CI/CD
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      # Setup MongoDB service
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+
+      # Setup RabbitMQ service
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest coverage
+
+      - name: Wait for RabbitMQ
+        run: |
+          echo "Waiting for RabbitMQ to be ready..."
+          timeout 60 bash -c 'until rabbitmqctl status; do sleep 2; done'
+          echo "RabbitMQ is ready!"
+
+      - name: Run tests with coverage
+        env:
+          ENVIRONMENT: testing
+          MONGODB_URI: mongodb://localhost:27017/
+          MONGODB_DATABASE: notification_service_test
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: 5672
+        run: |
+          coverage run --source=. test_notification_service.py
+          coverage report
+          coverage xml
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+  build:
+    name: Build and push Docker image
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/notification-service-api:latest,${{ secrets.DOCKER_HUB_USERNAME }}/notification-service-api:${{ github.sha }}
+
+      - name: Build and push Consumer image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/notification-service-consumer:latest,${{ secrets.DOCKER_HUB_USERNAME }}/notification-service-consumer:${{ github.sha }}
+          build-args: |
+            ENTRYPOINT=["python", "consumer.py"]
+
+  deploy:
+    name: Deploy to production
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USERNAME }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/notification-service
+            docker-compose pull
+            docker-compose up -d
+            docker image prune -f

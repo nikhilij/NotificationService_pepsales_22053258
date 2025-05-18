@@ -205,3 +205,102 @@ To directly verify that notifications are being saved to MongoDB:
    ```
    db.notifications.find().sort({created_at: -1}).pretty()
    ```
+
+## Automated Testing
+
+### Running the Test Suite
+
+The project includes a comprehensive test suite that verifies all components. To run all tests:
+
+```powershell
+python test_notification_service.py
+```
+
+For more detailed test output:
+
+```powershell
+python test_notification_service.py -v
+```
+
+### Test Coverage
+
+To generate test coverage reports:
+
+1. Install coverage tool (if not already installed):
+
+```powershell
+pip install coverage
+```
+
+2. Run tests with coverage:
+
+```powershell
+coverage run --source=. test_notification_service.py
+```
+
+3. Generate HTML report:
+
+```powershell
+coverage html
+```
+
+4. Open the report in your browser:
+
+```powershell
+Start-Process .\htmlcov\index.html
+```
+
+### Docker Deployment Testing
+
+To test the Docker deployment:
+
+1. Build and start all services:
+
+```powershell
+docker-compose up --build -d
+```
+
+2. Check if all services are running:
+
+```powershell
+docker-compose ps
+```
+
+3. Test the API endpoint:
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/health'
+```
+
+4. Send a test notification:
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body '{"user_id": 123, "type": "email", "content": "Docker test notification"}'
+```
+
+5. Check logs from the consumer service:
+
+```powershell
+docker-compose logs consumer
+```
+
+6. Access the RabbitMQ management interface at http://localhost:15672 using guest/guest login.
+
+7. Stop all services when done:
+
+```powershell
+docker-compose down
+```
+
+### Load Testing
+
+For basic load testing:
+
+```powershell
+# Send 50 notifications in parallel
+1..50 | ForEach-Object -Parallel {
+    Invoke-RestMethod -Uri 'http://localhost:5000/notifications' -Method Post -ContentType 'application/json' -Body ('{"user_id": 999, "type": "email", "content": "Load test ' + $_ + '"}')
+} -ThrottleLimit 10
+```
+
+For more advanced load testing, consider using tools like Apache JMeter or k6.

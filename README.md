@@ -296,3 +296,88 @@ Invoke-RestMethod -Uri 'http://localhost:5000/health'
 6. Add API documentation with Swagger/OpenAPI
 7. Add environment variable configuration
 8. Containerize the application with Docker
+
+## Deployment Guide
+
+This service is containerized using Docker and can be deployed in various environments.
+
+### Environment Variables
+
+Configure the service by setting environment variables. Copy `.env.template` to `.env` and modify as needed:
+
+```bash
+cp .env.template .env
+```
+
+Key environment variables:
+
+- `ENVIRONMENT`: Set to 'development', 'testing', or 'production'
+- `MONGODB_URI`: URI for MongoDB connection
+- `RABBITMQ_HOST`: RabbitMQ host
+- `API_PORT`: Port for the API to listen on (default: 5000)
+
+### Deploying with Docker
+
+#### Single Service with Docker
+
+1. Build the Docker image:
+
+```bash
+docker build -t notification-service .
+```
+
+2. Run the API:
+
+```bash
+docker run -p 5000:5000 --name notification-api --env-file .env notification-service python app.py
+```
+
+3. Run the consumer:
+
+```bash
+docker run --name notification-consumer --env-file .env notification-service python consumer.py
+```
+
+#### Full Stack with Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+
+- API service on port 5000
+- Consumer service processing messages from RabbitMQ
+- MongoDB database with persistent storage
+- RabbitMQ server with management interface on port 15672
+
+### Scaling
+
+The notification consumer can be horizontally scaled to handle increased load:
+
+```bash
+docker-compose up -d --scale consumer=3
+```
+
+### Health Checks
+
+The API provides a health endpoint at `/health` that returns status information.
+
+### Monitoring
+
+The RabbitMQ management interface is available at http://localhost:15672 when using Docker Compose.
+Default credentials: guest/guest
+
+## Running Tests
+
+Run the test suite:
+
+```bash
+python test_notification_service.py
+```
+
+Run with verbose output:
+
+```bash
+python test_notification_service.py -v
+```

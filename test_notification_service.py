@@ -233,6 +233,39 @@ class TestNotificationService(unittest.TestCase):
         mock_update_status.assert_called_once_with("60f8f1b3c2d7a8f9e1d2c3b4", "failed")
         mock_channel.basic_ack.assert_called_once_with(delivery_tag="test_tag")
 
+    @patch("consumer.get_notification_service")
+    @patch("consumer.update_notification_status")
+    def test_process_notification(self, mock_update_status, mock_get_service):
+        """Test process_notification function"""
+        # Setup
+        mock_service = MagicMock()
+        mock_service.send.return_value = True
+        mock_get_service.return_value = mock_service
+
+        mock_channel = MagicMock()
+        mock_method = MagicMock()
+        mock_method.delivery_tag = "test_tag"
+        mock_properties = None
+
+        notification_data = {
+            "id": "60f8f1b3c2d7a8f9e1d2c3b4",
+            "user_id": 123,
+            "type": "email",
+            "content": "Test content",
+        }
+        body = json.dumps(notification_data).encode("utf-8")
+
+        # Execute
+        process_notification(mock_channel, mock_method, mock_properties, body)
+
+        # Assert
+        mock_get_service.assert_called_once_with("email")
+        mock_service.send.assert_called_once_with(123, "Test content")
+        mock_update_status.assert_called_once_with(
+            "60f8f1b3c2d7a8f9e1d2c3b4", "delivered"
+        )
+        mock_channel.basic_ack.assert_called_once_with(delivery_tag="test_tag")
+
     def test_send_notification_api(self):
         """Test the API endpoint for sending notifications"""
         # Setup

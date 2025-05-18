@@ -5,6 +5,15 @@ import logging
 import warnings
 from notification_services import get_notification_service
 from database import update_notification_status
+from config import (
+    LOG_LEVEL,
+    RABBITMQ_HOST,
+    RABBITMQ_PORT,
+    RABBITMQ_USER,
+    RABBITMQ_PASSWORD,
+    RABBITMQ_QUEUE,
+    RABBITMQ_URL,
+)
 
 # Quiet those pesky warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -12,7 +21,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 # Keep logging minimal - just what we need to know
 logging.basicConfig(
-    level=logging.WARNING,  # Changed from INFO to WARNING to cut down on noise
+    level=getattr(logging, LOG_LEVEL),
     format="%(levelname)s: %(message)s",  # Cleaner format
 )
 logger = logging.getLogger(__name__)
@@ -20,7 +29,16 @@ logger = logging.getLogger(__name__)
 
 def get_rabbitmq_connection():
     """Get a connection to RabbitMQ"""
-    connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+    # Use URL-based connection if available, otherwise use parameters
+    if RABBITMQ_URL:
+        connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+    else:
+        credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials
+            )
+        )
     return connection
 
 
@@ -95,17 +113,13 @@ def start_consumer():
 
     # Knock knock, RabbitMQ
     connection = get_rabbitmq_connection()
-    channel = connection.channel()
-
-    # Make sure our queue exists
-    channel.queue_declare(queue="notifications", durable=True)
+    channel = connection.channel()  # Make sure our queue exists
+    channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
 
     # One at a time please - we're not in a rush
-    channel.basic_qos(prefetch_count=1)
-
-    # Tell RabbitMQ to call us when messages arrive
+    channel.basic_qos(prefetch_count=1)  # Tell RabbitMQ to call us when messages arrive
     channel.basic_consume(
-        queue="notifications", on_message_callback=process_notification
+        queue=RABBITMQ_QUEUE, on_message_callback=process_notification
     )
 
     logger.info("🔔 Notification handler is awake and listening...")

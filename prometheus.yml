@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "notification_service_api"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["api:5000"]
+
+  - job_name: "notification_service_consumer"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["consumer:5000"]
+
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  - job_name: "mongodb"
+    static_configs:
+      - targets: ["mongodb:9216"]
